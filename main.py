@@ -48,3 +48,53 @@ async def message_handler(message: types.Message):
 
 if __name__ == '__main__':
     executor.start_polling(dp, skip_updates=True)
+from aiogram.dispatcher import FSMContext
+from aiogram.dispatcher.filters.state import State, StatesGroup
+from aiogram.contrib.fsm_storage.memory import MemoryStorage
+storage = MemoryStorage()
+dp = Dispatcher(bot, storage=storage)
+class ReferatOrder(StatesGroup):
+    subject = State()
+    topic = State()
+    institution = State()
+    pages = State()
+    @dp.message_handler(lambda message: message.text == "📄 Referat")
+async def referat_start(message: types.Message):
+    await message.answer("Iltimos, fanni kiriting (masalan: Tarix, Informatika)")
+    await ReferatOrder.subject.set()
+    @dp.message_handler(state=ReferatOrder.subject)
+async def referat_get_subject(message: types.Message, state: FSMContext):
+    await state.update_data(subject=message.text)
+    await message.answer("Endi referat mavzusini yozing.")
+    await ReferatOrder.next()
+    @dp.message_handler(state=ReferatOrder.topic)
+async def referat_get_topic(message: types.Message, state: FSMContext):
+    await state.update_data(topic=message.text)
+    await message.answer("Qaysi ta’lim muassasasida o‘qiysiz?")
+    await ReferatOrder.next()
+    @dp.message_handler(state=ReferatOrder.institution)
+async def referat_get_institution(message: types.Message, state: FSMContext):
+    await state.update_data(institution=message.text)
+    await message.answer("Nechta sahifalik referat kerak? (5-10, 20, 30-40)")
+    await ReferatOrder.next()
+    @dp.message_handler(state=ReferatOrder.pages)
+async def referat_get_pages(message: types.Message, state: FSMContext):
+    pages = message.text
+    price = "3000 so'm"
+    if "20" in pages:
+        price = "5000 so'm"
+    elif "30" in pages or "40" in pages:
+        price = "10000 so'm"
+
+    data = await state.get_data()
+    await message.answer(
+        f"Buyurtma qabul qilindi!\n\n"
+        f"Fan: {data['subject']}\n"
+        f"Mavzu: {data['topic']}\n"
+        f"Ta’lim muassasasi: {data['institution']}\n"
+        f"Sahifa: {pages}\n"
+        f"Narx: {price}\n\n"
+        f"Tez orada operator siz bilan bog‘lanadi yoki bot orqali to‘lov bo‘limi ishga tushadi."
+    )
+    await state.finish()
+    
